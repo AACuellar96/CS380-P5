@@ -51,12 +51,12 @@ public final class UdpClient {
             sequence[11] = (byte) Integer.parseInt(hex.substring(2).toUpperCase(), 16);
             out.write(sequence);
             System.out.println("Handshake Response: 0x"+(Integer.toHexString(is.read())+Integer.toHexString(is.read())+Integer.toHexString(is.read())+Integer.toHexString(is.read())).toUpperCase());
-            int data = is.read();
+            String data = ""+is.read();
+            data=data+is.read();
             System.out.println("Port number received: "+ data);
             System.out.println("");
-            String dataH = Integer.toHexString(data);
-            while (dataH.length() < 4)
-                dataH = "0" + dataH;
+            while (data.length() < 4)
+                data = "0" + data;
             for(int packetN=0; packetN<12; packetN++) {
                 int byteAmt = (int) Math.pow(2,(packetN+1));
                 System.out.println("Sending packet with " + byteAmt+" bytes of data");
@@ -106,9 +106,10 @@ public final class UdpClient {
                 //UDP SOURCE PORT
                 sequence[20]=0x11;
                 sequence[21]=0x11;
+                //INCORREECT?
                 //UDP DEST PORT
-                sequence[22] = (byte) Integer.parseInt(dataH.substring(0, 2).toUpperCase(), 16);
-                sequence[23] = (byte) Integer.parseInt(dataH.substring(2).toUpperCase(), 16);
+                sequence[22] = (byte) Integer.parseInt(data.substring(0, 2).toUpperCase());
+                sequence[23] = (byte) Integer.parseInt(data.substring(2).toUpperCase());
 
                 //UDP LENGTH
                 hexSize=Integer.toHexString(size-20);
@@ -129,14 +130,29 @@ public final class UdpClient {
                 }
 
                 //TODO UDP CHECKSUM
-                checkSumBytes=new byte[18];
-                for(int i=0;i<18;i++){
-                    if(i<10){
-                        checkSumBytes[i]=sequence[i];
-                    }
-                    else{
-                        checkSumBytes[i]=sequence[i+2];
-                    }
+                checkSumBytes=new byte[16+byteAmt];
+                checkSumBytes[0]=0x11;
+                checkSumBytes[1]=0x11;
+                checkSumBytes[2]=0x11;
+                checkSumBytes[3]=0x11;
+
+                checkSumBytes[4]=0x12;
+                checkSumBytes[5]=(byte) 0xDD;
+                checkSumBytes[6]=(byte) 0x66;
+                checkSumBytes[7]=(byte) 0xB6;
+
+                checkSumBytes[9]=0x11;
+
+                checkSumBytes[10]=sequence[24];
+                checkSumBytes[11]=sequence[25];
+
+                checkSumBytes[12]=0x11;
+                checkSumBytes[13]=0x11;
+
+                checkSumBytes[14] = (byte) Integer.parseInt(data.substring(0, 2).toUpperCase());
+                checkSumBytes[15] = (byte) Integer.parseInt(data.substring(2).toUpperCase());
+                for(int i=0;i<byteAmt;i++){
+                    checkSumBytes[16+i]=sequence[28+i];
                 }
                 cSum = checksum(checkSumBytes);
                 hex = Integer.toHexString(cSum);
