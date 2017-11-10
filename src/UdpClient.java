@@ -6,9 +6,6 @@ public final class UdpClient {
         try (Socket socket = new Socket("18.221.102.182",38005)) {
             System.out.println("Connected to server.");
             InputStream is = socket.getInputStream();
-            InputStreamReader isr = new InputStreamReader(is, "UTF-8");
-            BufferedReader br = new BufferedReader(isr);
-            BufferedReader brIS = new BufferedReader(new InputStreamReader(System.in));
             PrintStream out = new PrintStream((socket.getOutputStream()),true,"UTF-8");
             byte[] sequence = new byte[24];
             sequence[0] = 0x45;
@@ -51,12 +48,12 @@ public final class UdpClient {
             sequence[11] = (byte) Integer.parseInt(hex.substring(2).toUpperCase(), 16);
             out.write(sequence);
             System.out.println("Handshake Response: 0x"+(Integer.toHexString(is.read())+Integer.toHexString(is.read())+Integer.toHexString(is.read())+Integer.toHexString(is.read())).toUpperCase());
-            String data = ""+is.read();
-            data=data+is.read();
-            System.out.println("Port number received: "+ data);
+            byte pNum1 = (byte) is.read();
+            byte pNum2 = (byte) is.read();
+            String portNum = ""+Byte.toUnsignedInt(pNum1)+Byte.toUnsignedInt(pNum2);
+            System.out.println("Port number received: "+ Integer.parseInt(portNum,16));
             System.out.println("");
-            while (data.length() < 4)
-                data = "0" + data;
+            long avgTime=0;
             for(int packetN=0; packetN<12; packetN++) {
                 int byteAmt = (int) Math.pow(2,(packetN+1));
                 System.out.println("Sending packet with " + byteAmt+" bytes of data");
@@ -102,15 +99,12 @@ public final class UdpClient {
                 }
                 sequence[10] = (byte) Integer.parseInt(hex.substring(0, 2).toUpperCase(), 16);
                 sequence[11] = (byte) Integer.parseInt(hex.substring(2).toUpperCase(), 16);
-
                 //UDP SOURCE PORT
                 sequence[20]=0x11;
                 sequence[21]=0x11;
-                //INCORREECT?
                 //UDP DEST PORT
-                sequence[22] = (byte) Integer.parseInt(data.substring(0, 2).toUpperCase());
-                sequence[23] = (byte) Integer.parseInt(data.substring(2).toUpperCase());
-
+                sequence[22] = pNum1;
+                sequence[23] = pNum2;
                 //UDP LENGTH
                 hexSize=Integer.toHexString(size-20);
                 if (hexSize.length() > 4)
@@ -128,31 +122,26 @@ public final class UdpClient {
                 for(int i=0;i<Math.pow(2,(packetN+1));i++){
                         sequence[28+i]=r[i];
                 }
-
-                //TODO UDP CHECKSUM
-                checkSumBytes=new byte[16+byteAmt];
+                checkSumBytes=new byte[20+byteAmt];
                 checkSumBytes[0]=0x11;
                 checkSumBytes[1]=0x11;
                 checkSumBytes[2]=0x11;
                 checkSumBytes[3]=0x11;
-
                 checkSumBytes[4]=0x12;
                 checkSumBytes[5]=(byte) 0xDD;
                 checkSumBytes[6]=(byte) 0x66;
                 checkSumBytes[7]=(byte) 0xB6;
-
                 checkSumBytes[9]=0x11;
-
                 checkSumBytes[10]=sequence[24];
                 checkSumBytes[11]=sequence[25];
-
                 checkSumBytes[12]=0x11;
                 checkSumBytes[13]=0x11;
-
-                checkSumBytes[14] = (byte) Integer.parseInt(data.substring(0, 2).toUpperCase());
-                checkSumBytes[15] = (byte) Integer.parseInt(data.substring(2).toUpperCase());
+                checkSumBytes[14] = pNum1;
+                checkSumBytes[15] = pNum2;
+                checkSumBytes[16]=sequence[24];
+                checkSumBytes[17]=sequence[25];
                 for(int i=0;i<byteAmt;i++){
-                    checkSumBytes[16+i]=sequence[28+i];
+                    checkSumBytes[20+i]=r[i];
                 }
                 cSum = checksum(checkSumBytes);
                 hex = Integer.toHexString(cSum);
@@ -164,16 +153,16 @@ public final class UdpClient {
                 }
                 sequence[26] = (byte) Integer.parseInt(hex.substring(0, 2).toUpperCase(), 16);
                 sequence[27] = (byte) Integer.parseInt(hex.substring(2).toUpperCase(), 16);
-
-
+                long sentTime = System.currentTimeMillis();
                 out.write(sequence);
                 System.out.println("Response: 0x"+(Integer.toHexString(is.read())+Integer.toHexString(is.read())+Integer.toHexString(is.read())+Integer.toHexString(is.read())).toUpperCase());
+                long estimatedRTT =  System.currentTimeMillis() - sentTime;
+                System.out.println("RTT: "+ estimatedRTT + " ms");
                 System.out.println("");
+                avgTime+=estimatedRTT;
             }
+            System.out.println("Average RTT: " + avgTime/12);
             is.close();
-            isr.close();
-            br.close();
-            brIS.close();
             socket.close();
             System.out.println("Disconnected from server.");
         }
@@ -198,5 +187,4 @@ public final class UdpClient {
         }
         return (short) ((~(cSum))& 0xFFFF);
     }
-
 }
