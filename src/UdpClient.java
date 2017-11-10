@@ -51,7 +51,7 @@ public final class UdpClient {
             byte pNum1 = (byte) is.read();
             byte pNum2 = (byte) is.read();
             String portNum = ""+Byte.toUnsignedInt(pNum1)+Byte.toUnsignedInt(pNum2);
-            System.out.println("Port number received: "+ Integer.parseInt(portNum,16));
+            System.out.println("Port number received: "+ portNum);
             System.out.println("");
             long avgTime=0;
             for(int packetN=0; packetN<12; packetN++) {
@@ -161,7 +161,7 @@ public final class UdpClient {
                 System.out.println("");
                 avgTime+=estimatedRTT;
             }
-            System.out.println("Average RTT: " + avgTime/12);
+            System.out.println("Average RTT: " + avgTime/12 + " ms");
             is.close();
             socket.close();
             System.out.println("Disconnected from server.");
